@@ -1,48 +1,99 @@
 import React from 'react';
-import { FaBell, FaUserCircle } from 'react-icons/fa';
+import { Navbar, Nav, Container, Badge, Dropdown } from 'react-bootstrap';
+import { useNavigate, useLocation } from 'react-router-dom';
 
 const Header: React.FC = () => {
+  const navigate = useNavigate();
+  const location = useLocation();
+
+  const handleNavigation = (path: string) => {
+    navigate(path);
+  };
+
+  const isActive = (path: string) => {
+    return location.pathname === path;
+  };
+
   return (
-    <header className="bg-white shadow-sm border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex justify-between items-center h-16">
-          <div className="flex items-center">
-            <div className="flex-shrink-0">
-              <h1 className="text-xl font-bold text-blue-600">
-                Sistema de Aprobaciones
-              </h1>
-            </div>
-          </div>
-
-          <nav className="hidden md:block">
-            <div className="flex space-x-8">
-              <a href="#" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">
-                Mis Solicitudes
-              </a>
-              <a href="#" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">
-                Pendientes
-              </a>
-              <a href="#" className="text-gray-900 hover:text-blue-600 px-3 py-2 text-sm font-medium">
-                Historial
-              </a>
-            </div>
-          </nav>
-
-          <div className="flex items-center space-x-4">
-            <button className="relative p-1 text-gray-400 hover:text-gray-600">
-              <FaBell className="h-6 w-6" />
-              <span className="absolute top-0 right-0 block h-2 w-2 bg-red-400 rounded-full"></span>
-            </button>
-            <div className="flex items-center space-x-2">
-              <FaUserCircle className="h-8 w-8 text-gray-400" />
-              <span className="text-sm font-medium text-gray-700">
+    <Navbar bg="white" expand="lg" className="border-bottom shadow-sm sticky-top">
+      <Container fluid="xl">
+        <Navbar.Brand 
+          className="text-primary fw-bold fs-3"
+          onClick={() => handleNavigation('/')}
+          style={{ cursor: 'pointer' }}
+        >
+          🚀 Sistema de Aprobaciones
+        </Navbar.Brand>
+        
+        <Navbar.Toggle aria-controls="basic-navbar-nav" />
+        <Navbar.Collapse id="basic-navbar-nav">
+          <Nav className="me-auto">
+            <Nav.Link 
+              as="button"
+              className={`fw-semibold mx-2 border-0 bg-transparent ${isActive('/') ? 'text-primary' : 'text-dark'}`}
+              onClick={() => handleNavigation('/')}
+            >
+              Dashboard
+            </Nav.Link>
+            <Nav.Link 
+              as="button"
+              className={`fw-semibold mx-2 border-0 bg-transparent ${isActive('/my-requests') ? 'text-primary' : 'text-dark'}`}
+              onClick={() => handleNavigation('/my-requests')}
+            >
+              Mis Solicitudes
+            </Nav.Link>
+            <Nav.Link 
+              as="button"
+              className={`fw-semibold mx-2 border-0 bg-transparent ${isActive('/approval-inbox') ? 'text-primary' : 'text-dark'}`}
+              onClick={() => handleNavigation('/approval-inbox')}
+            >
+              Bandeja <Badge bg="warning" text="dark" className="ms-1">3</Badge>
+            </Nav.Link>
+            <Nav.Link 
+              as="button"
+              className={`fw-semibold mx-2 border-0 bg-transparent ${isActive('/history') ? 'text-primary' : 'text-dark'}`}
+              onClick={() => handleNavigation('/history')}
+            >
+              Historial
+            </Nav.Link>
+          </Nav>
+          
+          <Nav>
+            <Dropdown align="end">
+              <Dropdown.Toggle 
+                variant="outline-primary" 
+                id="dropdown-basic"
+                className="d-flex align-items-center"
+              >
+                <span className="me-2">👤</span>
                 usuario@empresa.com
-              </span>
-            </div>
-          </div>
-        </div>
-      </div>
-    </header>
+              </Dropdown.Toggle>
+              <Dropdown.Menu>
+                <Dropdown.Item 
+                  className="d-flex align-items-center"
+                  onClick={() => alert('Perfil - Próximamente!')}
+                >
+                  <span className="me-2">👤</span> Mi Perfil
+                </Dropdown.Item>
+                <Dropdown.Item 
+                  className="d-flex align-items-center"
+                  onClick={() => alert('Configuración - Próximamente!')}
+                >
+                  <span className="me-2">⚙️</span> Configuración
+                </Dropdown.Item>
+                <Dropdown.Divider />
+                <Dropdown.Item 
+                  className="d-flex align-items-center text-danger"
+                  onClick={() => alert('Cerrar sesión - Próximamente!')}
+                >
+                  <span className="me-2">🚪</span> Cerrar Sesión
+                </Dropdown.Item>
+              </Dropdown.Menu>
+            </Dropdown>
+          </Nav>
+        </Navbar.Collapse>
+      </Container>
+    </Navbar>
   );
 };
 

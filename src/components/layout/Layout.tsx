@@ -1,5 +1,6 @@
 import React from 'react';
 import Header from './Header';
+import { Container } from 'react-bootstrap';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -7,11 +8,11 @@ interface LayoutProps {
 
 const Layout: React.FC<LayoutProps> = ({ children }) => {
   return (
-    <div className="min-h-screen bg-gray-50">
+    <div className="min-vh-100 bg-light">
       <Header />
-      <main className="max-w-7xl mx-auto py-6 sm:px-6 lg:px-8">
+      <Container fluid="xl" className="py-4">
         {children}
-      </main>
+      </Container>
     </div>
   );
 };

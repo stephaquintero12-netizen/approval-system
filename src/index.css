@@ -1,3 +1,36 @@
-@tailwind base;
-@tailwind components;
-@tailwind utilities;
+/* Bootstrap CSS */
+@import 'bootstrap/dist/css/bootstrap.min.css';
+
+/* Estilos personalizados */
+body {
+  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+  background-color: #f8f9fa;
+}
+
+.custom-shadow {
+  box-shadow: 0 0.5rem 1rem rgba(0, 0, 0, 0.15);
+}
+
+.hover-lift:hover {
+  transform: translateY(-2px);
+  transition: transform 0.2s;
+}
+
+.stat-card {
+  border-left: 4px solid;
+}
+
+.stat-pending { border-left-color: #ffc107; }
+.stat-approved { border-left-color: #198754; }
+.stat-rejected { border-left-color: #dc3545; }
+.stat-total { border-left-color: #6c757d; }
+
+/* Estilos para el historial */
+.history-item {
+  border-left: 3px solid #dee2e6;
+  padding-left: 1rem;
+}
+
+.history-created { border-left-color: #0d6efd; }
+.history-approved { border-left-color: #198754; }
+.history-rejected { border-left-color: #dc3545; }
