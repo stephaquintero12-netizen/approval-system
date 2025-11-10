@@ -79,7 +79,6 @@ const History: React.FC = () => {
       
     } catch (err: any) {
       setError('Error al cargar el historial');
-      console.error('Error loading history:', err);
     } finally {
       setLoading(false);
     }

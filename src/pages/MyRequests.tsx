@@ -41,7 +41,6 @@ const MyRequests: React.FC = () => {
       setRequests(myRequests);
       setLastUpdated(new Date());
     } catch (err: any) {
-      console.error('Error cargando mis solicitudes:', err);
     }
   };
 

@@ -12,10 +12,7 @@ const dbConfig = {
   queueLimit: 0
 };
 
-// Crear pool de conexiones
 const pool = mysql.createPool(dbConfig);
-
-// Probar la conexión
 const testConnection = async () => {
   try {
     const connection = await pool.getConnection();
