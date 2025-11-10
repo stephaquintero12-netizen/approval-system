@@ -14,6 +14,12 @@ const Header: React.FC = () => {
     return location.pathname === path;
   };
 
+  const currentUser = {
+    name: 'Stephanie Baez',
+    email: 'stephanie.baez@empresa.com',
+    role: 'Usuario'
+  };
+
   return (
     <Navbar bg="white" expand="lg" className="border-bottom shadow-sm sticky-top">
       <Container fluid="xl">
@@ -66,9 +72,18 @@ const Header: React.FC = () => {
                 className="d-flex align-items-center"
               >
                 <span className="me-2">👤</span>
-                usuario@empresa.com
+                {currentUser.name}
               </Dropdown.Toggle>
               <Dropdown.Menu>
+                <Dropdown.Header>
+                  <div className="fw-bold">{currentUser.name}</div>
+                  <small className="text-muted">{currentUser.email}</small>
+                  <br />
+                  <Badge bg="outline-primary" text="primary" className="mt-1">
+                    {currentUser.role}
+                  </Badge>
+                </Dropdown.Header>
+                <Dropdown.Divider />
                 <Dropdown.Item 
                   className="d-flex align-items-center"
                   onClick={() => alert('Perfil - Próximamente!')}

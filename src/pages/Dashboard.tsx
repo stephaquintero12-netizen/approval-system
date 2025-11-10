@@ -8,7 +8,8 @@ import {
   Badge,
   Table,
   Spinner,
-  Alert
+  Alert,
+  Collapse
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
 import { requestsAPI, usersAPI } from '../services/api';
@@ -18,6 +19,7 @@ import RequestForm from '../components/requests/RequestForm';
 const ConnectionDiagnostic: React.FC<{ onCheckConnection: () => void }> = ({ onCheckConnection }) => {
   const [backendStatus, setBackendStatus] = useState<'checking' | 'connected' | 'error'>('checking');
   const [dbStatus, setDbStatus] = useState<'checking' | 'connected' | 'error'>('checking');
+  const [showDetails, setShowDetails] = useState(false);
 
   useEffect(() => {
     checkBackendConnection();
@@ -28,7 +30,7 @@ const ConnectionDiagnostic: React.FC<{ onCheckConnection: () => void }> = ({ onC
       setBackendStatus('checking');
       setDbStatus('checking');
 
-  const response = await fetch('http://localhost:3001/api/health');
+      const response = await fetch('http://localhost:3001/api/health');
       if (response.ok) {
         setBackendStatus('connected');
         checkDatabaseConnection();
@@ -62,40 +64,53 @@ const ConnectionDiagnostic: React.FC<{ onCheckConnection: () => void }> = ({ onC
   };
 
   return (
-    <Card className="mb-4 border-0 bg-light">
-      <Card.Body className="py-3">
-        <div className="d-flex justify-content-between align-items-center">
-          <div>
-            <h6 className="mb-1">🔍 Estado de la Conexión</h6>
-            <div className="d-flex gap-3">
-              <small>
-                <Badge bg={backendStatus === 'connected' ? 'success' : backendStatus === 'checking' ? 'warning' : 'danger'}>
-                  {backendStatus === 'connected' ? '✅ Backend Conectado' : backendStatus === 'checking' ? '🔄 Verificando Backend' : '❌ Backend Desconectado'}
-                </Badge>
-              </small>
-              <small>
-                <Badge bg={dbStatus === 'connected' ? 'success' : dbStatus === 'checking' ? 'warning' : 'danger'}>
-                  {dbStatus === 'connected' ? '✅ BD Conectada' : dbStatus === 'checking' ? '🔄 Verificando BD' : '❌ BD Desconectada'}
-                </Badge>
-              </small>
-            </div>
-            {backendStatus === 'connected' && dbStatus === 'connected' && (
-              <small className="text-success mt-1 d-block">
-                ✅ El frontend está conectado correctamente al backend y la base de datos
-              </small>
-            )}
-          </div>
-          <Button 
-            variant="outline-primary" 
-            size="sm" 
-            onClick={handleCheck}
-            className="d-flex align-items-center gap-1"
-          >
-            🔄 Probar Conexión
-          </Button>
+    <div className="mt-4">
+      <div className="d-flex justify-content-between align-items-center mb-2">
+        <small className="text-muted">Estado del sistema</small>
+        <Button 
+          variant="link" 
+          size="sm" 
+          onClick={() => setShowDetails(!showDetails)}
+          className="p-0 text-decoration-none"
+        >
+          <small>{showDetails ? '▲ Ocultar' : '▼ Detalles'}</small>
+        </Button>
+      </div>
+      
+      <Collapse in={showDetails}>
+        <div>
+          <Card className="border-0 bg-light">
+            <Card.Body className="py-2">
+              <div className="d-flex justify-content-between align-items-center">
+                <div>
+                  <h6 className="mb-1">🔍 Estado de la Conexión</h6>
+                  <div className="d-flex gap-3">
+                    <small>
+                      <Badge bg={backendStatus === 'connected' ? 'success' : backendStatus === 'checking' ? 'warning' : 'danger'}>
+                        {backendStatus === 'connected' ? '✅ Backend Conectado' : backendStatus === 'checking' ? '🔄 Verificando Backend' : '❌ Backend Desconectado'}
+                      </Badge>
+                    </small>
+                    <small>
+                      <Badge bg={dbStatus === 'connected' ? 'success' : dbStatus === 'checking' ? 'warning' : 'danger'}>
+                        {dbStatus === 'connected' ? '✅ BD Conectada' : dbStatus === 'checking' ? '🔄 Verificando BD' : '❌ BD Desconectada'}
+                      </Badge>
+                    </small>
+                  </div>
+                </div>
+                <Button 
+                  variant="outline-primary" 
+                  size="sm" 
+                  onClick={handleCheck}
+                  className="d-flex align-items-center gap-1"
+                >
+                  🔄 Probar
+                </Button>
+              </div>
+            </Card.Body>
+          </Card>
         </div>
-      </Card.Body>
-    </Card>
+      </Collapse>
+    </div>
   );
 };
 
@@ -107,14 +122,6 @@ const Dashboard: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
   const [successMessage, setSuccessMessage] = useState('');
-  const [connectionChecked, setConnectionChecked] = useState(false);
-  const currentUser: User = {
-    id: 1,
-    username: 'juan.perez',
-    email: 'juan.perez@empresa.com',
-    full_name: 'Juan Pérez',
-    role: 'user'
-  };
 
   useEffect(() => {
     loadData();
@@ -130,18 +137,11 @@ const Dashboard: React.FC = () => {
         usersAPI.getAll()
       ]);
       
-      console.log('✅ [DASHBOARD] Datos cargados del backend:', {
-        requestsCount: requestsResponse.data?.length || 0,
-        usersCount: usersResponse.data?.length || 0
-      });
-      
       setRequests(requestsResponse.data || []);
       setUsers(usersResponse.data || []);
-      setConnectionChecked(true);
       
     } catch (err: any) {
       setError('No se pudo conectar con el backend: ' + err.message);
-      
       setRequests([]);
       setUsers([]);
     } finally {
@@ -151,24 +151,13 @@ const Dashboard: React.FC = () => {
 
   const handleCreateRequest = async (requestData: NewRequestData) => {
     try {
-      console.log('📤 [DASHBOARD] Enviando nueva solicitud al backend:', {
-        ...requestData,
-        timestamp: new Date().toISOString()
-      });
-      
       const response = await requestsAPI.create(requestData);
-      
-      setSuccessMessage(`✅ Solicitud creada exitosamente! ID: ${response.data?.id || 'Nuevo'}`);
-      setTimeout(() => setSuccessMessage(''), 5000);
+      setSuccessMessage(`✅ Solicitud creada exitosamente!`);
+      setTimeout(() => setSuccessMessage(''), 3000);
       await loadData();
-      
       return response;
     } catch (err: any) {
-      console.error('❌ [DASHBOARD] Error creando solicitud:', {
-        message: err.message,
-        error: err
-      });
-      throw new Error(err.message || 'No se pudo crear la solicitud. Verifica que el backend esté funcionando en http://localhost:3001');
+      throw new Error(err.message || 'No se pudo crear la solicitud');
     }
   };
 
@@ -241,32 +230,28 @@ const Dashboard: React.FC = () => {
       title: 'Pendientes', 
       value: stats.pending, 
       variant: 'warning', 
-      icon: '⏳', 
-      class: 'stat-pending',
+      icon: '⏳',
       description: 'Esperando aprobación'
     },
     { 
       title: 'Aprobadas', 
       value: stats.approved, 
       variant: 'success', 
-      icon: '✅', 
-      class: 'stat-approved',
+      icon: '✅',
       description: 'Solicitudes aprobadas'
     },
     { 
       title: 'Rechazadas', 
       value: stats.rejected, 
       variant: 'danger', 
-      icon: '❌', 
-      class: 'stat-rejected',
+      icon: '❌',
       description: 'Solicitudes rechazadas'
     },
     { 
       title: 'Total', 
       value: stats.total, 
       variant: 'primary', 
-      icon: '📊', 
-      class: 'stat-total',
+      icon: '📊',
       description: 'Total de solicitudes'
     }
   ];
@@ -275,11 +260,8 @@ const Dashboard: React.FC = () => {
     return (
       <Container fluid="xl" className="py-5">
         <div className="text-center py-5">
-          <Spinner animation="border" variant="primary" className="mb-3" style={{ width: '3rem', height: '3rem' }}>
-            <span className="visually-hidden">Cargando...</span>
-          </Spinner>
-          <h5 className="text-muted">Cargando sistema de aprobaciones...</h5>
-          <p className="text-muted small">Conectando con el servidor</p>
+          <Spinner animation="border" variant="primary" className="mb-3" />
+          <h5 className="text-muted">Cargando...</h5>
         </div>
       </Container>
     );
@@ -290,75 +272,38 @@ const Dashboard: React.FC = () => {
       {/* Mensajes de alerta */}
       {error && (
         <Alert variant="warning" className="mb-4" dismissible onClose={() => setError('')}>
-          <Alert.Heading>⚠️ Error de Conexión</Alert.Heading>
-          {error}
-          <hr />
-          <div className="mb-0">
-            <strong>Para solucionar:</strong>
-            <ol className="mb-0 mt-2">
-              <li>Asegúrate de que el backend esté corriendo en <code>http://localhost:3001</code></li>
-              <li>Verifica que la base de datos MySQL esté funcionando</li>
-              <li>Haz clic en "Probar Conexión" abajo</li>
-            </ol>
+          <strong>⚠️ Error de Conexión</strong>
+          <div className="mt-2">
+            <small>Asegúrate de que el backend esté corriendo en http://localhost:3001</small>
           </div>
         </Alert>
       )}
       
       {successMessage && (
         <Alert variant="success" className="mb-4">
-          <Alert.Heading>✅ Éxito</Alert.Heading>
           {successMessage}
-          <hr />
-          <div className="mb-0">
-            <strong>¿Qué pasó?</strong>
-            <ul className="mb-0 mt-2">
-              <li>La solicitud se envió al backend</li>
-              <li>Se guardó en la base de datos MySQL</li>
-              <li>La tabla se actualizó automáticamente</li>
-              <li>El contador "Total" aumentó en 1</li>
-            </ul>
-          </div>
         </Alert>
       )}
 
-      {/* Diagnóstico de conexión */}
-      <ConnectionDiagnostic onCheckConnection={loadData} />
-
-      {/* Header */}
+      {/* Header simplificado */}
       <Row className="mb-4">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h1 className="h2 fw-bold text-primary mb-2">
-                {connectionChecked ? '🚀 Sistema de Aprobaciones' : '🔄 Conectando...'}
-              </h1>
+              <h1 className="h2 fw-bold text-dark mb-2">Dashboard</h1>
               <p className="text-muted mb-0">
-                {connectionChecked 
-                  ? 'Centraliza y gestiona todas las solicitudes de tu equipo' 
-                  : 'Estableciendo conexión con el servidor...'
-                }
+                Resumen de solicitudes del sistema
               </p>
             </div>
-            <div className="d-flex gap-2">
-              <Button 
-                variant="outline-secondary" 
-                size="sm"
-                onClick={loadData}
-                className="d-flex align-items-center"
-              >
-                <span className="me-2">🔄</span>
-                Actualizar
-              </Button>
-              <Button 
-                variant="primary" 
-                size="lg"
-                onClick={handleShowModal}
-                className="d-flex align-items-center px-4"
-              >
-                <span className="me-2">➕</span>
-                Nueva Solicitud
-              </Button>
-            </div>
+            <Button 
+              variant="primary" 
+              size="lg"
+              onClick={handleShowModal}
+              className="d-flex align-items-center px-4"
+            >
+              <span className="me-2"></span>
+              Nueva Solicitud
+            </Button>
           </div>
         </Col>
       </Row>
@@ -367,7 +312,7 @@ const Dashboard: React.FC = () => {
       <Row className="mb-5">
         {statCards.map((stat, index) => (
           <Col xs={12} sm={6} lg={3} key={index} className="mb-4">
-            <Card className={`h-100 border-0 shadow-sm hover-lift transition-all ${stat.class}`}>
+            <Card className="h-100 border-0 shadow-sm">
               <Card.Body className="text-center p-4">
                 <div className={`text-${stat.variant} mb-3`}>
                   <span style={{ fontSize: '2.5rem' }}>{stat.icon}</span>
@@ -388,18 +333,11 @@ const Dashboard: React.FC = () => {
             <Card.Header className="bg-white border-bottom-0 py-3">
               <div className="d-flex justify-content-between align-items-center">
                 <h5 className="card-title mb-0 fw-semibold text-dark">
-                  📋 Solicitudes {connectionChecked ? 'Reales' : 'de Demo'}
+                  Solicitudes Recientes
                 </h5>
-                <div className="d-flex align-items-center gap-2">
-                  <Badge bg="light" text="dark" className="fs-6">
-                    {requests.length} solicitudes
-                  </Badge>
-                  {!connectionChecked && (
-                    <Badge bg="warning" text="dark">
-                      Modo Demo
-                    </Badge>
-                  )}
-                </div>
+                <Badge bg="light" text="dark" className="fs-6">
+                  {requests.length} total
+                </Badge>
               </div>
             </Card.Header>
             <Card.Body className="p-0">
@@ -461,10 +399,6 @@ const Dashboard: React.FC = () => {
                           <td>
                             <div className="text-nowrap">
                               {new Date(request.created_at).toLocaleDateString()}
-                              <br />
-                              <small className="text-muted">
-                                {new Date(request.created_at).toLocaleTimeString()}
-                              </small>
                             </div>
                           </td>
                           <td className="text-center">
@@ -472,9 +406,7 @@ const Dashboard: React.FC = () => {
                               variant="outline-primary" 
                               size="sm"
                               onClick={() => handleViewDetail(request.id)}
-                              className="d-flex align-items-center gap-1"
                             >
-                              <span>👁️</span>
                               Ver
                             </Button>
                           </td>
@@ -489,12 +421,21 @@ const Dashboard: React.FC = () => {
         </Col>
       </Row>
 
+      {/* Diagnóstico de conexión (oculto por defecto) */}
+      <ConnectionDiagnostic onCheckConnection={loadData} />
+
       {/* Modal de Nueva Solicitud */}
       <RequestForm
         show={showModal}
         onHide={handleCloseModal}
         onSubmit={handleCreateRequest}
-        currentUser={currentUser}
+        currentUser={{
+          id: 1,
+          username: 'stephanie.baez',
+          email: 'stephanie.baez@empresa.com',
+          full_name: 'Stephanie Baez',
+          role: 'user'
+        }}
       />
     </Container>
   );

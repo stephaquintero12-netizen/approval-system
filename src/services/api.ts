@@ -1,6 +1,9 @@
+import { NewRequestData, ApprovalActionData } from '../types';
+
 const API_BASE_URL = 'http://localhost:3001/api';
+
 const fetchAPI = async (endpoint: string, options: RequestInit = {}) => {
-const url = `${API_BASE_URL}${endpoint}`;
+  const url = `${API_BASE_URL}${endpoint}`;
   
   try {
     const response = await fetch(url, {
@@ -32,11 +35,33 @@ export const requestsAPI = {
     return await fetchAPI(`/requests/${id}`);
   },
   
-  create: async (requestData: any) => {
+  create: async (requestData: NewRequestData) => {
     return await fetchAPI('/requests', {
       method: 'POST',
       body: JSON.stringify(requestData),
     });
+  },
+
+  approve: async (id: number, actionData: ApprovalActionData) => {
+    return await fetchAPI(`/requests/${id}/approve`, {
+      method: 'POST',
+      body: JSON.stringify(actionData),
+    });
+  },
+  
+  reject: async (id: number, actionData: ApprovalActionData) => {
+    return await fetchAPI(`/requests/${id}/reject`, {
+      method: 'POST',
+      body: JSON.stringify(actionData),
+    });
+  },
+
+  getHistory: async (id: number) => {
+    return await fetchAPI(`/requests/${id}/history`);
+  },
+
+  getAllHistory: async () => {
+    return await fetchAPI('/requests/history/all');
   }
 };
 
@@ -47,6 +72,10 @@ export const usersAPI = {
   
   getById: async (id: number) => {
     return await fetchAPI(`/users/${id}`);
+  },
+
+  getApprovers: async () => {
+    return await fetchAPI('/users/approvers');
   }
 };
 
