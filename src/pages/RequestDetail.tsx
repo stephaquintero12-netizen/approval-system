@@ -61,42 +61,6 @@ const RequestDetail: React.FC = () => {
     }
   };
 
-  const handleAction = async () => {
-    if (!request || !actionType) return;
-
-    try {
-      setActionLoading(true);
-      
-      if (actionType === 'approve') {
-        await requestsAPI.approve(request.id, {
-          user_id: currentUser.id,
-          comment: comment || 'Solicitud aprobada'
-        });
-      } else if (actionType === 'reject') {
-        await requestsAPI.reject(request.id, {
-          user_id: currentUser.id,
-          comment: comment || 'Solicitud rechazada'
-        });
-      }
-
-      await loadRequestData();
-      setShowActionModal(false);
-      setComment('');
-      setActionType('');
-      
-    } catch (err: any) {
-      setError('Error al procesar la acción');
-    } finally {
-      setActionLoading(false);
-    }
-  };
-
-  const openActionModal = (type: 'approve' | 'reject') => {
-    setActionType(type);
-    setShowActionModal(true);
-    setComment('');
-  };
-
   const getStatusVariant = (status: string) => {
     switch (status) {
       case 'pending': return 'warning';
@@ -177,10 +141,6 @@ const RequestDetail: React.FC = () => {
     return new Date(dateString).toLocaleString('es-ES');
   };
 
-  const canTakeAction = request && 
-    request.approver_id === currentUser.id && 
-    request.status === 'pending';
-
   if (loading) {
     return (
       <Container fluid="xl" className="py-4">
@@ -232,26 +192,13 @@ const RequestDetail: React.FC = () => {
               </div>
             </div>
             
-            {canTakeAction && (
-              <div className="d-flex gap-2">
-                <Button 
-                  variant="success" 
-                  onClick={() => openActionModal('approve')}
-                  className="d-flex align-items-center gap-2"
-                >
-                  <span>✅</span>
-                  Aprobar
-                </Button>
-                <Button 
-                  variant="danger" 
-                  onClick={() => openActionModal('reject')}
-                  className="d-flex align-items-center gap-2"
-                >
-                  <span>❌</span>
-                  Rechazar
-                </Button>
-              </div>
-            )}
+            {/* SE ELIMINARON LOS BOTONES DE APROBAR Y RECHAZAR */}
+            {/* Solo se muestra información del estado */}
+            <div className="text-end">
+              <Badge bg={getStatusVariant(request.status)} className="fs-6 p-2">
+                Estado: {getStatusText(request.status)}
+              </Badge>
+            </div>
           </div>
         </Col>
       </Row>
@@ -400,64 +347,6 @@ const RequestDetail: React.FC = () => {
           </Card>
         </Col>
       </Row>
-
-      {/* Modal para Aprobar/Rechazar */}
-      <Modal show={showActionModal} onHide={() => setShowActionModal(false)}>
-        <Modal.Header closeButton>
-          <Modal.Title>
-            {actionType === 'approve' ? '✅ Aprobar Solicitud' : '❌ Rechazar Solicitud'}
-          </Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <Form.Group className="mb-3">
-            <Form.Label>
-              {actionType === 'approve' ? 'Comentario (opcional)' : 'Comentario (obligatorio)'}
-            </Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              placeholder={
-                actionType === 'approve' 
-                  ? 'Agregar un comentario opcional...' 
-                  : 'Explicar por qué se rechaza la solicitud...'
-              }
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              required={actionType === 'reject'}
-            />
-            {actionType === 'reject' && !comment && (
-              <Form.Text className="text-danger">
-                El comentario es obligatorio para rechazar una solicitud
-              </Form.Text>
-            )}
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button 
-            variant="secondary" 
-            onClick={() => setShowActionModal(false)}
-            disabled={actionLoading}
-          >
-            Cancelar
-          </Button>
-          <Button 
-            variant={actionType === 'approve' ? 'success' : 'danger'}
-            onClick={handleAction}
-            disabled={actionLoading || (actionType === 'reject' && !comment)}
-          >
-            {actionLoading ? (
-              <>
-                <Spinner animation="border" size="sm" className="me-2" />
-                Procesando...
-              </>
-            ) : (
-              <>
-                {actionType === 'approve' ? '✅ Aprobar' : '❌ Rechazar'}
-              </>
-            )}
-          </Button>
-        </Modal.Footer>
-      </Modal>
     </Container>
   );
 };

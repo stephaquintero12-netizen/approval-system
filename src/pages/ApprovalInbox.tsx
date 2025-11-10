@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, 
   Row, 
@@ -8,140 +8,221 @@ import {
   Badge, 
   Table,
   Alert,
+  Modal,
   Form,
-  Modal
+  Spinner
 } from 'react-bootstrap';
 import { useNavigate } from 'react-router-dom';
-
-const mockPendingRequests = [
-  {
-    id: 'REQ-001',
-    title: 'Despliegue Microservicio Usuarios v2.1',
-    type: 'despliegue',
-    status: 'pending',
-    requester: 'juan.perez',
-    approver: 'maria.garcia',
-    createdAt: '2024-01-15T10:30:00Z',
-    description: 'Nueva versión del microservicio de usuarios con mejoras en autenticación',
-    priority: 'high'
-  },
-  {
-    id: 'REQ-004',
-    title: 'Acceso a Dashboard de Monitoreo',
-    type: 'acceso',
-    status: 'pending',
-    requester: 'carlos.lopez',
-    approver: 'maria.garcia',
-    createdAt: '2024-01-16T08:15:00Z',
-    description: 'Solicitud de acceso al dashboard de Kibana para monitoreo',
-    priority: 'medium'
-  },
-  {
-    id: 'REQ-005',
-    title: 'Configuración Nuevo Pipeline CI/CD',
-    type: 'cambio',
-    status: 'pending',
-    requester: 'ana.martinez',
-    approver: 'maria.garcia',
-    createdAt: '2024-01-16T14:30:00Z',
-    description: 'Implementación de nuevo pipeline para servicio de notificaciones',
-    priority: 'high'
-  }
-];
+import { requestsAPI } from '../services/api';
+import { ApprovalRequest, User, ApprovalActionData } from '../types';
 
 const ApprovalInbox: React.FC = () => {
   const navigate = useNavigate();
-  const [requests, setRequests] = useState(mockPendingRequests);
-  const [showApproveModal, setShowApproveModal] = useState(false);
-  const [showRejectModal, setShowRejectModal] = useState(false);
-  const [selectedRequest, setSelectedRequest] = useState<any>(null);
+  const [requests, setRequests] = useState<ApprovalRequest[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [success, setSuccess] = useState('');
+  const [showModal, setShowModal] = useState(false);
+  const [selectedRequest, setSelectedRequest] = useState<ApprovalRequest | null>(null);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | ''>('');
   const [comment, setComment] = useState('');
-  const handleQuickApprove = (requestId: string) => {
-    setRequests(prev => prev.filter(req => req.id !== requestId));
+  const [processing, setProcessing] = useState(false);
+
+  const currentUser: User = {
+    id: 2,
+    username: 'maria.garcia',
+    email: 'maria.garcia@empresa.com',
+    full_name: 'María García',
+    role: 'user'
   };
 
-  const handleQuickReject = (requestId: string) => {
-    setRequests(prev => prev.filter(req => req.id !== requestId));
-  };
+  useEffect(() => {
+    loadPendingRequests();
+  }, []);
 
-  const handleViewDetail = (requestId: string) => {
-    navigate(`/request/${requestId}`);
-  };
-
-  const handleApproveWithComment = () => {
-    if (selectedRequest) {
-      setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));
-      setShowApproveModal(false);
-      setComment('');
+  const loadPendingRequests = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const response = await requestsAPI.getAll();
+      const allRequests: ApprovalRequest[] = response.data || [];
+      
+      const pendingRequests = allRequests.filter(request => 
+        request.status === 'pending' && request.approver_id === currentUser.id
+      );
+      
+      setRequests(pendingRequests);
+      
+    } catch (err: any) {
+      setError('Error al cargar las solicitudes pendientes: ' + err.message);
+    } finally {
+      setLoading(false);
     }
   };
 
-  const handleRejectWithComment = () => {
-    if (selectedRequest) {
-      setRequests(prev => prev.filter(req => req.id !== selectedRequest.id));
-      setShowRejectModal(false);
+  const openModal = (request: ApprovalRequest, type: 'approve' | 'reject') => {
+    setSelectedRequest(request);
+    setActionType(type);
+    setComment('');
+    setShowModal(true);
+  };
+
+  const closeModal = () => {
+    setShowModal(false);
+    setTimeout(() => {
+      setSelectedRequest(null);
+      setActionType('');
       setComment('');
+    }, 300);
+  };
+
+  const handleConfirmAction = async () => {
+    if (!selectedRequest || !actionType) return;
+
+    try {
+      setProcessing(true);
+      setError('');
+
+      const actionData: ApprovalActionData = {
+        user_id: currentUser.id,
+        comment: comment || (actionType === 'approve' ? 'Solicitud aprobada' : 'Solicitud rechazada')
+      };
+
+      if (actionType === 'approve') {
+        await requestsAPI.approve(selectedRequest.id, actionData);
+      } else {
+        await requestsAPI.reject(selectedRequest.id, actionData);
+      }
+
+      setShowModal(false);
+      setTimeout(() => {
+        loadPendingRequests();
+      }, 500);
+      
+      const successMsg = actionType === 'approve' 
+        ? `✅ Solicitud #${selectedRequest.request_id} aprobada correctamente` 
+        : `❌ Solicitud #${selectedRequest.request_id} rechazada correctamente`;
+      
+      setSuccess(successMsg);
+
+      setTimeout(() => {
+        setSuccess('');
+      }, 5000);
+      
+    } catch (err: any) {
+      setError('Error al procesar la acción: ' + err.message);
+    } finally {
+      setProcessing(false);
+    }
+  };
+
+  const handleViewDetail = (requestId: number) => {
+    navigate(`/request/${requestId}`);
+  };
+
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'despliegue': return '🚀';
+      case 'acceso': return '🔑';
+      case 'cambio': return '⚙️';
+      case 'herramienta': return '🛠️';
+      default: return '📄';
     }
   };
 
   const getPriorityVariant = (priority: string) => {
     switch (priority) {
-      case 'high': return 'danger';
+      case 'low': return 'success';
       case 'medium': return 'warning';
-      case 'low': return 'secondary';
+      case 'high': return 'danger';
       default: return 'secondary';
     }
   };
 
   const getPriorityText = (priority: string) => {
     switch (priority) {
-      case 'high': return 'Alta';
-      case 'medium': return 'Media';
       case 'low': return 'Baja';
+      case 'medium': return 'Media';
+      case 'high': return 'Alta';
       default: return priority;
     }
   };
 
-  const getTypeText = (type: string) => {
-    switch (type) {
-      case 'despliegue': return '🚀 Despliegue';
-      case 'acceso': return '🔑 Acceso';
-      case 'cambio': return '🛠️ Cambio';
-      case 'herramienta': return '📦 Herramienta';
-      default: return type;
-    }
+  const formatDate = (dateString: string) => {
+    return new Date(dateString).toLocaleDateString('es-ES');
   };
+
+  if (loading) {
+    return (
+      <Container fluid="xl" className="py-4">
+        <div className="text-center py-5">
+          <Spinner animation="border" variant="primary" className="mb-3" />
+          <h5 className="text-muted">Cargando bandeja de aprobación...</h5>
+        </div>
+      </Container>
+    );
+  }
 
   return (
     <Container fluid="xl" className="py-4">
-      {/* Header */}
       <Row className="mb-4">
         <Col>
           <div className="d-flex justify-content-between align-items-center">
             <div>
-              <h1 className="h2 fw-bold text-dark">📬 Bandeja de Aprobación</h1>
-              <p className="text-muted">
-                Tienes <strong>{requests.length}</strong> solicitudes pendientes de aprobación
+              <Button 
+                variant="outline-secondary" 
+                onClick={() => navigate('/')}
+                className="mb-3"
+              >
+                ← Volver al Dashboard
+              </Button>
+              <h1 className="h2 fw-bold text-dark mb-2">📬 Bandeja de Aprobación</h1>
+              <p className="text-muted mb-0">
+                Solicitudes pendientes que requieren tu revisión
               </p>
             </div>
-            <Badge bg="warning" className="fs-6 px-3 py-2">
-              ⏳ {requests.length} Pendientes
-            </Badge>
+            <div className="d-flex align-items-center gap-2">
+              <Badge bg="warning" text="dark" className="fs-6">
+                {requests.length} pendientes
+              </Badge>
+              <Button 
+                variant="outline-primary" 
+                size="sm"
+                onClick={loadPendingRequests}
+              >
+                🔄 Actualizar
+              </Button>
+            </div>
           </div>
         </Col>
       </Row>
 
-      {/* Alertas si no hay solicitudes */}
+      {error && (
+        <Alert variant="danger" className="mb-4" dismissible onClose={() => setError('')}>
+          {error}
+        </Alert>
+      )}
+
+      {success && (
+        <Alert variant="success" className="mb-4" dismissible onClose={() => setSuccess('')}>
+          {success}
+        </Alert>
+      )}
+
       {requests.length === 0 ? (
         <Alert variant="success" className="text-center">
-          <h5>🎉 ¡No tienes solicitudes pendientes!</h5>
-          <p className="mb-0">Tu bandeja de aprobación está vacía.</p>
+          <div className="text-muted mb-3" style={{ fontSize: '3rem' }}>🎉</div>
+          <h5 className="text-muted">¡No hay solicitudes pendientes!</h5>
+          <p className="text-muted mb-4">Tu bandeja de aprobación está al día</p>
+          <Button variant="primary" onClick={() => navigate('/')}>
+            📊 Ir al Dashboard
+          </Button>
         </Alert>
       ) : (
-        /* Tabla de solicitudes pendientes */
         <Row>
           <Col>
-            <Card className="custom-shadow">
+            <Card className="shadow-sm">
               <Card.Header className="bg-white">
                 <h5 className="card-title mb-0 fw-semibold">
                   📋 Solicitudes Pendientes de Tu Aprobación
@@ -157,75 +238,62 @@ const ApprovalInbox: React.FC = () => {
                       <th>Solicitante</th>
                       <th>Prioridad</th>
                       <th>Fecha</th>
-                      <th>Acciones Rápidas</th>
+                      <th className="text-center">Acciones</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {requests.map((request) => (
-                      <tr key={request.id}>
-                        <td className="fw-semibold">{request.id}</td>
+                    {requests.map((request, index) => (
+                      <tr key={`request-${request.id}-${index}`}>
+                        <td className="fw-bold text-primary">{request.request_id}</td>
                         <td>
                           <div>
-                            {request.title}
-                            <br />
+                            <div className="fw-semibold">{request.title}</div>
                             <small className="text-muted">
                               {request.description.substring(0, 60)}...
                             </small>
                           </div>
                         </td>
                         <td>
-                          <Badge bg="outline-primary">
-                            {getTypeText(request.type)}
-                          </Badge>
+                          <div className="d-flex align-items-center gap-1">
+                            <span>{getTypeIcon(request.request_type)}</span>
+                            <span>{request.request_type}</span>
+                          </div>
                         </td>
                         <td>
-                          <Badge bg="secondary">{request.requester}</Badge>
+                          <Badge bg="primary">
+                            {request.requester_name || `Usuario ${request.requester_id}`}
+                          </Badge>
                         </td>
                         <td>
                           <Badge bg={getPriorityVariant(request.priority)}>
                             {getPriorityText(request.priority)}
                           </Badge>
                         </td>
-                        <td>{new Date(request.createdAt).toLocaleDateString()}</td>
+                        <td>{formatDate(request.created_at)}</td>
                         <td>
-                          <div className="d-flex gap-1 flex-wrap">
+                          <div className="d-flex justify-content-center gap-2">
                             <Button 
-                              variant="outline-success" 
+                              variant="success" 
                               size="sm"
-                              onClick={() => handleQuickApprove(request.id)}
-                              title="Aprobar sin comentario"
+                              onClick={() => openModal(request, 'approve')}
+                              disabled={processing}
                             >
-                              ✅
+                              ✅ Aprobar
                             </Button>
                             <Button 
-                              variant="outline-warning" 
+                              variant="danger" 
                               size="sm"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setShowApproveModal(true);
-                              }}
-                              title="Aprobar con comentario"
+                              onClick={() => openModal(request, 'reject')}
+                              disabled={processing}
                             >
-                              📝
-                            </Button>
-                            <Button 
-                              variant="outline-danger" 
-                              size="sm"
-                              onClick={() => {
-                                setSelectedRequest(request);
-                                setShowRejectModal(true);
-                              }}
-                              title="Rechazar con comentario"
-                            >
-                              ❌
+                              ❌ Rechazar
                             </Button>
                             <Button 
                               variant="outline-primary" 
                               size="sm"
                               onClick={() => handleViewDetail(request.id)}
-                              title="Ver detalles completos"
                             >
-                              👁️
+                              👁️ Ver
                             </Button>
                           </div>
                         </td>
@@ -239,63 +307,58 @@ const ApprovalInbox: React.FC = () => {
         </Row>
       )}
 
-      {/* Modal para Aprobar con Comentario */}
-      <Modal show={showApproveModal} onHide={() => setShowApproveModal(false)} centered>
-        <Modal.Header closeButton className="bg-success text-white">
-          <Modal.Title>✅ Aprobar Solicitud</Modal.Title>
+      {/* Modal simplificado */}
+      <Modal show={showModal} onHide={closeModal} centered>
+        <Modal.Header closeButton className={actionType === 'approve' ? 'bg-success text-white' : 'bg-danger text-white'}>
+          <Modal.Title>
+            {actionType === 'approve' ? '✅ Confirmar Aprobación' : '❌ Confirmar Rechazo'}
+          </Modal.Title>
         </Modal.Header>
         <Modal.Body>
-          <p>
-            <strong>Solicitud:</strong> {selectedRequest?.title}
-          </p>
+          {selectedRequest && (
+            <div className="mb-3">
+              <h6>Solicitud: {selectedRequest.request_id}</h6>
+              <p className="mb-2">{selectedRequest.title}</p>
+              <small className="text-muted">
+                Solicitante: {selectedRequest.requester_name || `Usuario ${selectedRequest.requester_id}`}
+              </small>
+            </div>
+          )}
+          
           <Form.Group>
-            <Form.Label>Comentario (opcional):</Form.Label>
+            <Form.Label>
+              {actionType === 'approve' ? 'Comentario (opcional)' : 'Comentario (recomendado)'}
+            </Form.Label>
             <Form.Control
               as="textarea"
               rows={3}
+              placeholder={
+                actionType === 'approve' 
+                  ? 'Agregar un comentario opcional...' 
+                  : 'Explicar por qué se rechaza la solicitud...'
+              }
               value={comment}
               onChange={(e) => setComment(e.target.value)}
-              placeholder="Agrega un comentario para el solicitante..."
             />
           </Form.Group>
         </Modal.Body>
         <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowApproveModal(false)}>
+          <Button variant="secondary" onClick={closeModal} disabled={processing}>
             Cancelar
           </Button>
-          <Button variant="success" onClick={handleApproveWithComment}>
-            ✅ Aprobar Solicitud
-          </Button>
-        </Modal.Footer>
-      </Modal>
-
-      {/* Modal para Rechazar con Comentario */}
-      <Modal show={showRejectModal} onHide={() => setShowRejectModal(false)} centered>
-        <Modal.Header closeButton className="bg-danger text-white">
-          <Modal.Title>❌ Rechazar Solicitud</Modal.Title>
-        </Modal.Header>
-        <Modal.Body>
-          <p>
-            <strong>Solicitud:</strong> {selectedRequest?.title}
-          </p>
-          <Form.Group>
-            <Form.Label>Motivo del rechazo:</Form.Label>
-            <Form.Control
-              as="textarea"
-              rows={3}
-              value={comment}
-              onChange={(e) => setComment(e.target.value)}
-              placeholder="Explica el motivo del rechazo..."
-              required
-            />
-          </Form.Group>
-        </Modal.Body>
-        <Modal.Footer>
-          <Button variant="secondary" onClick={() => setShowRejectModal(false)}>
-            Cancelar
-          </Button>
-          <Button variant="danger" onClick={handleRejectWithComment}>
-            ❌ Rechazar Solicitud
+          <Button 
+            variant={actionType === 'approve' ? 'success' : 'danger'}
+            onClick={handleConfirmAction}
+            disabled={processing}
+          >
+            {processing ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Procesando...
+              </>
+            ) : (
+              actionType === 'approve' ? '✅ Aprobar' : '❌ Rechazar'
+            )}
           </Button>
         </Modal.Footer>
       </Modal>

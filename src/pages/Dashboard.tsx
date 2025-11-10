@@ -137,7 +137,6 @@ const Dashboard: React.FC = () => {
         usersAPI.getAll()
       ]);
       
-      console.log('📦 Datos cargados - Solicitudes:', requestsResponse.data);
       setRequests(requestsResponse.data || []);
       setUsers(usersResponse.data || []);
       
@@ -170,8 +169,6 @@ const Dashboard: React.FC = () => {
   const handleShowModal = () => setShowModal(true);
 
   const handleViewDetail = (requestId: number) => {
-    console.log('🎯 Navegando a solicitud ID:', requestId);
-    console.log('📋 Datos de la solicitud:', requests.find(r => r.id === requestId));
     navigate(`/request/${requestId}`);
   };
 

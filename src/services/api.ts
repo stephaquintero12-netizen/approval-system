@@ -44,14 +44,14 @@ export const requestsAPI = {
 
   approve: async (id: number, actionData: ApprovalActionData) => {
     return await fetchAPI(`/requests/${id}/approve`, {
-      method: 'POST',
+      method: 'PUT', 
       body: JSON.stringify(actionData),
     });
   },
   
   reject: async (id: number, actionData: ApprovalActionData) => {
     return await fetchAPI(`/requests/${id}/reject`, {
-      method: 'POST',
+      method: 'PUT', 
       body: JSON.stringify(actionData),
     });
   },

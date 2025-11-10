@@ -1,10 +1,17 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Navbar, Nav, Container, Badge, Dropdown } from 'react-bootstrap';
 import { useNavigate, useLocation } from 'react-router-dom';
+
+interface ApprovalRequest {
+  id: number;
+  status: string;
+}
 
 const Header: React.FC = () => {
   const navigate = useNavigate();
   const location = useLocation();
+  const [pendingCount, setPendingCount] = useState<number>(0);
+    const [requests, setRequests] = useState<ApprovalRequest[]>([]);
 
   const handleNavigation = (path: string) => {
     navigate(path);
@@ -13,6 +20,30 @@ const Header: React.FC = () => {
   const isActive = (path: string) => {
     return location.pathname === path;
   };
+
+  const fetchPendingRequests = (): ApprovalRequest[] => {
+    const mockRequests: ApprovalRequest[] = [
+      { id: 1, status: 'pending' },
+      { id: 2, status: 'pending' },
+      { id: 3, status: 'pending' },
+      { id: 4, status: 'approved' },
+      { id: 5, status: 'rejected' }
+    ];
+
+    return mockRequests.filter(request => request.status === 'pending');
+  };
+
+  useEffect(() => {
+    const pendingRequests = fetchPendingRequests();
+    setPendingCount(pendingRequests.length);
+  }, []);
+
+  useEffect(() => {
+    if (location.pathname === '/approval-inbox') {
+      const pendingRequests = fetchPendingRequests();
+      setPendingCount(pendingRequests.length);
+    }
+  }, [location.pathname]);
 
   const currentUser = {
     name: 'Stephanie Baez',
@@ -53,7 +84,7 @@ const Header: React.FC = () => {
               className={`fw-semibold mx-2 border-0 bg-transparent ${isActive('/approval-inbox') ? 'text-primary' : 'text-dark'}`}
               onClick={() => handleNavigation('/approval-inbox')}
             >
-              Bandeja <Badge bg="warning" text="dark" className="ms-1">3</Badge>
+              Bandeja <Badge bg="warning" text="dark" className="ms-1"></Badge>
             </Nav.Link>
             <Nav.Link 
               as="button"
