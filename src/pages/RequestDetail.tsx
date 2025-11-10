@@ -1,4 +1,4 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { 
   Container, 
   Row, 
@@ -6,39 +6,96 @@ import {
   Card, 
   Button, 
   Badge, 
-  Form,
+  Form, 
+  Alert, 
+  Spinner,
   ListGroup,
-  Alert
+  Modal
 } from 'react-bootstrap';
 import { useParams, useNavigate } from 'react-router-dom';
-
-const mockRequest = {
-  id: 'REQ-001',
-  title: 'Despliegue Microservicio Usuarios v2.1',
-  description: 'Se requiere aprobación para desplegar la versión 2.1 del microservicio de usuarios que incluye nuevas funcionalidades de autenticación y mejoras en el rendimiento.',
-  requester: 'juan.perez',
-  approver: 'maria.garcia',
-  requestType: 'despliegue',
-  status: 'pending',
-  createdAt: '2024-01-15T10:30:00Z',
-  updatedAt: '2024-01-15T10:30:00Z',
-  history: [
-    {
-      id: 1,
-      action: 'created',
-      user: 'juan.perez',
-      comment: 'Solicitud creada',
-      timestamp: '2024-01-15T10:30:00Z'
-    }
-  ]
-};
+import { requestsAPI } from '../services/api';
+import { ApprovalRequest, RequestHistory, User } from '../types';
 
 const RequestDetail: React.FC = () => {
-  const { id } = useParams(); 
+  const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
-  const [request, setRequest] = useState(mockRequest);
+  const [request, setRequest] = useState<ApprovalRequest | null>(null);
+  const [history, setHistory] = useState<RequestHistory[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState('');
+  const [actionLoading, setActionLoading] = useState(false);
+  const [showActionModal, setShowActionModal] = useState(false);
+  const [actionType, setActionType] = useState<'approve' | 'reject' | ''>('');
   const [comment, setComment] = useState('');
-  const [showApprovalButtons, setShowApprovalButtons] = useState(true);
+  const currentUser: User = {
+    id: 2,
+    username: 'maria.garcia',
+    email: 'maria.garcia@empresa.com',
+    full_name: 'María García',
+    role: 'user'
+  };
+
+  useEffect(() => {
+    if (id) {
+      loadRequestData();
+    }
+  }, [id]);
+
+  const loadRequestData = async () => {
+    try {
+      setLoading(true);
+      setError('');
+      
+      const [requestResponse, historyResponse] = await Promise.all([
+        requestsAPI.getById(Number(id)),
+        requestsAPI.getHistory(Number(id))
+      ]);
+      
+      setRequest(requestResponse.data);
+      setHistory(historyResponse.data || []);
+      
+    } catch (err: any) {
+      setError('Error al cargar los datos de la solicitud');
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const handleAction = async () => {
+    if (!request || !actionType) return;
+
+    try {
+      setActionLoading(true);
+      
+      if (actionType === 'approve') {
+        await requestsAPI.approve(request.id, {
+          user_id: currentUser.id,
+          comment: comment || 'Solicitud aprobada'
+        });
+      } else if (actionType === 'reject') {
+        await requestsAPI.reject(request.id, {
+          user_id: currentUser.id,
+          comment: comment || 'Solicitud rechazada'
+        });
+      }
+
+      await loadRequestData();
+      setShowActionModal(false);
+      setComment('');
+      setActionType('');
+      
+    } catch (err: any) {
+      setError('Error al procesar la acción');
+    } finally {
+      setActionLoading(false);
+    }
+  };
+
+  const openActionModal = (type: 'approve' | 'reject') => {
+    setActionType(type);
+    setShowActionModal(true);
+    setComment('');
+  };
 
   const getStatusVariant = (status: string) => {
     switch (status) {
@@ -58,66 +115,104 @@ const RequestDetail: React.FC = () => {
     }
   };
 
+  const getTypeIcon = (type: string) => {
+    switch (type) {
+      case 'despliegue': return '🚀';
+      case 'acceso': return '🔑';
+      case 'cambio': return '⚙️';
+      case 'herramienta': return '🛠️';
+      default: return '📄';
+    }
+  };
+
   const getTypeText = (type: string) => {
     switch (type) {
-      case 'despliegue': return '🚀 Despliegue';
-      case 'acceso': return '🔑 Acceso';
-      case 'cambio': return '🛠️ Cambio Técnico';
-      case 'herramienta': return '📦 Nueva Herramienta';
+      case 'despliegue': return 'Despliegue';
+      case 'acceso': return 'Acceso';
+      case 'cambio': return 'Cambio Técnico';
+      case 'herramienta': return 'Nueva Herramienta';
       default: return type;
     }
   };
 
-  const handleApprove = () => {
-    setRequest(prev => ({
-      ...prev,
-      status: 'approved',
-      updatedAt: new Date().toISOString(),
-      history: [
-        ...prev.history,
-        {
-          id: prev.history.length + 1,
-          action: 'approved',
-          user: 'usuario.actual',
-          comment: comment || 'Solicitud aprobada',
-          timestamp: new Date().toISOString()
-        }
-      ]
-    }));
-    setComment('');
-    setShowApprovalButtons(false);
+  const getActionIcon = (action: string) => {
+    switch (action) {
+      case 'created': return '📝';
+      case 'approved': return '✅';
+      case 'rejected': return '❌';
+      case 'commented': return '💬';
+      default: return '📄';
+    }
   };
 
-  const handleReject = () => {
-    setRequest(prev => ({
-      ...prev,
-      status: 'rejected',
-      updatedAt: new Date().toISOString(),
-      history: [
-        ...prev.history,
-        {
-          id: prev.history.length + 1,
-          action: 'rejected',
-          user: 'usuario.actual',
-          comment: comment || 'Solicitud rechazada',
-          timestamp: new Date().toISOString()
-        }
-      ]
-    }));
-    setComment('');
-    setShowApprovalButtons(false);
+  const getActionText = (action: string) => {
+    switch (action) {
+      case 'created': return 'creó la solicitud';
+      case 'approved': return 'aprobó la solicitud';
+      case 'rejected': return 'rechazó la solicitud';
+      case 'commented': return 'comentó';
+      default: return action;
+    }
+  };
+
+  const getPriorityVariant = (priority: string) => {
+    switch (priority) {
+      case 'low': return 'success';
+      case 'medium': return 'warning';
+      case 'high': return 'danger';
+      default: return 'secondary';
+    }
+  };
+
+  const getPriorityText = (priority: string) => {
+    switch (priority) {
+      case 'low': return 'Baja';
+      case 'medium': return 'Media';
+      case 'high': return 'Alta';
+      default: return priority;
+    }
   };
 
   const formatDate = (dateString: string) => {
     return new Date(dateString).toLocaleString('es-ES');
   };
 
+  const canTakeAction = request && 
+    request.approver_id === currentUser.id && 
+    request.status === 'pending';
+
+  if (loading) {
+    return (
+      <Container fluid="xl" className="py-4">
+        <div className="text-center">
+          <Spinner animation="border" role="status">
+            <span className="visually-hidden">Cargando...</span>
+          </Spinner>
+          <p className="mt-2">Cargando solicitud ID: {id}...</p>
+        </div>
+      </Container>
+    );
+  }
+
+  if (!request) {
+    return (
+      <Container fluid="xl" className="py-4">
+        <Alert variant="danger">
+          No se pudo encontrar la solicitud con ID: {id}
+        </Alert>
+        <Button variant="primary" onClick={() => navigate('/')}>
+          Volver al Dashboard
+        </Button>
+      </Container>
+    );
+  }
+
   return (
     <Container fluid="xl" className="py-4">
-      {/* Header y Navegación */}
+      {/* Header */}
       <Row className="mb-4">
         <Col>
-          <div className="d-flex justify-content-between align-items-center">
+          <div className="d-flex justify-content-between align-items-start">
             <div>
               <Button 
                 variant="outline-secondary" 
@@ -126,140 +221,243 @@ const RequestDetail: React.FC = () => {
               >
                 ← Volver al Dashboard
               </Button>
-              <h1 className="h2 fw-bold text-dark">Detalle de Solicitud</h1>
-              <p className="text-muted">ID: {request.id}</p>
+              <h1 className="h2 fw-bold text-dark">{request.title}</h1>
+              <div className="d-flex gap-2 align-items-center">
+                <Badge bg={getStatusVariant(request.status)} className="fs-6">
+                  {getStatusText(request.status)}
+                </Badge>
+                <span className="text-muted">
+                  ID: {request.request_id} • Creado: {formatDate(request.created_at)}
+                </span>
+              </div>
             </div>
-            <Badge bg={getStatusVariant(request.status)} className="fs-6 px-3 py-2">
-              {getStatusText(request.status)}
-            </Badge>
+            
+            {canTakeAction && (
+              <div className="d-flex gap-2">
+                <Button 
+                  variant="success" 
+                  onClick={() => openActionModal('approve')}
+                  className="d-flex align-items-center gap-2"
+                >
+                  <span>✅</span>
+                  Aprobar
+                </Button>
+                <Button 
+                  variant="danger" 
+                  onClick={() => openActionModal('reject')}
+                  className="d-flex align-items-center gap-2"
+                >
+                  <span>❌</span>
+                  Rechazar
+                </Button>
+              </div>
+            )}
           </div>
         </Col>
       </Row>
 
+      {error && (
+        <Alert variant="danger" className="mb-4">
+          {error}
+        </Alert>
+      )}
+
       <Row>
-        {/* Columna izquierda - Información de la solicitud */}
-        <Col lg={8} className="mb-4">
-          <Card className="h-100">
+        {/* Información de la Solicitud */}
+        <Col lg={8}>
+          <Card className="mb-4">
             <Card.Header className="bg-white">
-              <h5 className="card-title mb-0 fw-semibold">📋 Información de la Solicitud</h5>
+              <h5 className="mb-0 fw-semibold">📋 Información de la Solicitud</h5>
             </Card.Header>
             <Card.Body>
               <Row className="mb-3">
                 <Col sm={6}>
+                  <strong>Título:</strong>
+                  <p className="mb-2">{request.title}</p>
+                </Col>
+                <Col sm={6}>
                   <strong>Tipo:</strong>
-                  <br />
-                  <span className="text-muted">{getTypeText(request.requestType)}</span>
+                  <p className="mb-2">
+                    <Badge bg="outline-secondary" text="dark" className="d-flex align-items-center gap-1" style={{width: 'fit-content'}}>
+                      <span>{getTypeIcon(request.request_type)}</span>
+                      {getTypeText(request.request_type)}
+                    </Badge>
+                  </p>
+                </Col>
+              </Row>
+              
+              <Row className="mb-3">
+                <Col sm={6}>
+                  <strong>Prioridad:</strong>
+                  <p className="mb-2">
+                    <Badge bg={getPriorityVariant(request.priority)}>
+                      {getPriorityText(request.priority)}
+                    </Badge>
+                  </p>
                 </Col>
                 <Col sm={6}>
                   <strong>Fecha de creación:</strong>
-                  <br />
-                  <span className="text-muted">{formatDate(request.createdAt)}</span>
+                  <p className="mb-2">{formatDate(request.created_at)}</p>
                 </Col>
               </Row>
 
               <div className="mb-3">
-                <strong>Título:</strong>
-                <br />
-                <span className="text-muted">{request.title}</span>
-              </div>
-
-              <div className="mb-3">
                 <strong>Descripción:</strong>
-                <br />
-                <p className="text-muted mt-2">{request.description}</p>
+                <p className="mt-2 text-muted" style={{ whiteSpace: 'pre-wrap' }}>
+                  {request.description}
+                </p>
               </div>
 
               <Row>
                 <Col sm={6}>
                   <strong>Solicitante:</strong>
-                  <br />
-                  <Badge bg="primary" className="mt-1">
-                    {request.requester}
-                  </Badge>
+                  <p className="mb-2 fw-medium">
+                    {request.requester_name || `Usuario ${request.requester_id}`}
+                  </p>
                 </Col>
                 <Col sm={6}>
                   <strong>Aprobador:</strong>
-                  <br />
-                  <Badge bg="info" className="mt-1">
-                    {request.approver}
-                  </Badge>
+                  <p className="mb-2 fw-medium">
+                    {request.approver_name || `Usuario ${request.approver_id}`}
+                  </p>
                 </Col>
               </Row>
             </Card.Body>
           </Card>
         </Col>
 
-        {/* Columna derecha - Acciones e Historial */}
+        {/* Panel de Historial y Acciones */}
         <Col lg={4}>
-          {/* Panel de Aprobación (solo si está pendiente y el usuario es el aprobador) */}
-          {request.status === 'pending' && showApprovalButtons && (
-            <Card className="mb-4 border-warning">
-              <Card.Header className="bg-warning text-dark">
-                <h6 className="mb-0 fw-semibold">⏳ Acción Requerida</h6>
-              </Card.Header>
-              <Card.Body>
-                <Form.Group className="mb-3">
-                  <Form.Label>Comentario (opcional)</Form.Label>
-                  <Form.Control
-                    as="textarea"
-                    rows={3}
-                    value={comment}
-                    onChange={(e) => setComment(e.target.value)}
-                    placeholder="Agrega un comentario sobre tu decisión..."
-                  />
-                </Form.Group>
-                <div className="d-grid gap-2">
-                  <Button variant="success" onClick={handleApprove}>
-                    ✅ Aprobar Solicitud
-                  </Button>
-                  <Button variant="danger" onClick={handleReject}>
-                    ❌ Rechazar Solicitud
-                  </Button>
-                </div>
-              </Card.Body>
-            </Card>
-          )}
-
           {/* Panel de Historial */}
-          <Card>
+          <Card className="mb-4">
             <Card.Header className="bg-white">
-              <h6 className="mb-0 fw-semibold">📊 Historial de la Solicitud</h6>
+              <h5 className="mb-0 fw-semibold">🕒 Historial de la Solicitud</h5>
             </Card.Header>
             <Card.Body className="p-0">
-              <ListGroup variant="flush">
-                {request.history.map((event) => (
-                  <ListGroup.Item key={event.id} className="border-0">
-                    <div className="d-flex">
-                      <div className="flex-shrink-0">
-                        <div className={`rounded-circle bg-${getStatusVariant(event.action)} d-flex align-items-center justify-content-center`} style={{width: '32px', height: '32px'}}>
-                          {event.action === 'created' && '📝'}
-                          {event.action === 'approved' && '✅'}
-                          {event.action === 'rejected' && '❌'}
+              {history.length === 0 ? (
+                <div className="text-center py-4">
+                  <p className="text-muted">No hay historial disponible</p>
+                </div>
+              ) : (
+                <ListGroup variant="flush">
+                  {history.map((item) => (
+                    <ListGroup.Item key={item.id} className="border-0">
+                      <div className="d-flex">
+                        <div className="flex-shrink-0 me-3">
+                          <span style={{ fontSize: '1.2rem' }}>
+                            {getActionIcon(item.action)}
+                          </span>
                         </div>
-                      </div>
-                      <div className="flex-grow-1 ms-3">
-                        <div className="fw-semibold">
-                          {event.action === 'created' && 'Solicitud creada'}
-                          {event.action === 'approved' && 'Solicitud aprobada'}
-                          {event.action === 'rejected' && 'Solicitud rechazada'}
-                        </div>
-                        <small className="text-muted">
-                          Por {event.user} • {formatDate(event.timestamp)}
-                        </small>
-                        {event.comment && (
-                          <div className="mt-1 p-2 bg-light rounded">
-                            <small>{event.comment}</small>
+                        <div className="flex-grow-1">
+                          <div className="d-flex justify-content-between align-items-start">
+                            <strong>{item.full_name || item.username}</strong>
+                            <small className="text-muted">
+                              {new Date(item.created_at).toLocaleTimeString()}
+                            </small>
                           </div>
-                        )}
+                          <p className="mb-1">
+                            {getActionText(item.action)}
+                            {item.comment && (
+                              <span className="text-muted">: "{item.comment}"</span>
+                            )}
+                          </p>
+                          <small className="text-muted">
+                            {new Date(item.created_at).toLocaleDateString()}
+                          </small>
+                        </div>
                       </div>
-                    </div>
-                  </ListGroup.Item>
-                ))}
-              </ListGroup>
+                    </ListGroup.Item>
+                  ))}
+                </ListGroup>
+              )}
+            </Card.Body>
+          </Card>
+
+          {/* Información de Estado */}
+          <Card>
+            <Card.Header className="bg-white">
+              <h5 className="mb-0 fw-semibold">📊 Estado Actual</h5>
+            </Card.Header>
+            <Card.Body>
+              <div className="text-center">
+                <div className={`text-${getStatusVariant(request.status)} mb-3`}>
+                  <span style={{ fontSize: '3rem' }}>
+                    {request.status === 'pending' && '⏳'}
+                    {request.status === 'approved' && '✅'}
+                    {request.status === 'rejected' && '❌'}
+                  </span>
+                </div>
+                <h4 className={`text-${getStatusVariant(request.status)}`}>
+                  {getStatusText(request.status)}
+                </h4>
+                <p className="text-muted small">
+                  {request.status === 'pending' && 'Esperando aprobación'}
+                  {request.status === 'approved' && 'Solicitud aprobada'}
+                  {request.status === 'rejected' && 'Solicitud rechazada'}
+                </p>
+              </div>
             </Card.Body>
           </Card>
         </Col>
       </Row>
+
+      {/* Modal para Aprobar/Rechazar */}
+      <Modal show={showActionModal} onHide={() => setShowActionModal(false)}>
+        <Modal.Header closeButton>
+          <Modal.Title>
+            {actionType === 'approve' ? '✅ Aprobar Solicitud' : '❌ Rechazar Solicitud'}
+          </Modal.Title>
+        </Modal.Header>
+        <Modal.Body>
+          <Form.Group className="mb-3">
+            <Form.Label>
+              {actionType === 'approve' ? 'Comentario (opcional)' : 'Comentario (obligatorio)'}
+            </Form.Label>
+            <Form.Control
+              as="textarea"
+              rows={3}
+              placeholder={
+                actionType === 'approve' 
+                  ? 'Agregar un comentario opcional...' 
+                  : 'Explicar por qué se rechaza la solicitud...'
+              }
+              value={comment}
+              onChange={(e) => setComment(e.target.value)}
+              required={actionType === 'reject'}
+            />
+            {actionType === 'reject' && !comment && (
+              <Form.Text className="text-danger">
+                El comentario es obligatorio para rechazar una solicitud
+              </Form.Text>
+            )}
+          </Form.Group>
+        </Modal.Body>
+        <Modal.Footer>
+          <Button 
+            variant="secondary" 
+            onClick={() => setShowActionModal(false)}
+            disabled={actionLoading}
+          >
+            Cancelar
+          </Button>
+          <Button 
+            variant={actionType === 'approve' ? 'success' : 'danger'}
+            onClick={handleAction}
+            disabled={actionLoading || (actionType === 'reject' && !comment)}
+          >
+            {actionLoading ? (
+              <>
+                <Spinner animation="border" size="sm" className="me-2" />
+                Procesando...
+              </>
+            ) : (
+              <>
+                {actionType === 'approve' ? '✅ Aprobar' : '❌ Rechazar'}
+              </>
+            )}
+          </Button>
+        </Modal.Footer>
+      </Modal>
     </Container>
   );
 };

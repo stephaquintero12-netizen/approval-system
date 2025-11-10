@@ -137,6 +137,7 @@ const Dashboard: React.FC = () => {
         usersAPI.getAll()
       ]);
       
+      console.log('📦 Datos cargados - Solicitudes:', requestsResponse.data);
       setRequests(requestsResponse.data || []);
       setUsers(usersResponse.data || []);
       
@@ -169,6 +170,8 @@ const Dashboard: React.FC = () => {
   const handleShowModal = () => setShowModal(true);
 
   const handleViewDetail = (requestId: number) => {
+    console.log('🎯 Navegando a solicitud ID:', requestId);
+    console.log('📋 Datos de la solicitud:', requests.find(r => r.id === requestId));
     navigate(`/request/${requestId}`);
   };
 
@@ -292,7 +295,7 @@ const Dashboard: React.FC = () => {
             <div>
               <h1 className="h2 fw-bold text-dark mb-2">Dashboard</h1>
               <p className="text-muted mb-0">
-                Resumen de solicitudes del sistema
+                Resumen de solicitudes del sistema • {requests.length} solicitudes cargadas
               </p>
             </div>
             <Button 
@@ -369,7 +372,11 @@ const Dashboard: React.FC = () => {
                     <tbody>
                       {requests.map((request) => (
                         <tr key={request.id} className="align-middle">
-                          <td className="fw-bold text-primary">{request.request_id}</td>
+                          <td className="fw-bold text-primary">
+                            {request.request_id}
+                            <br />
+                            <small className="text-muted">ID: {request.id}</small>
+                          </td>
                           <td>
                             <div>
                               <div className="fw-semibold text-dark">{request.title}</div>
@@ -406,7 +413,9 @@ const Dashboard: React.FC = () => {
                               variant="outline-primary" 
                               size="sm"
                               onClick={() => handleViewDetail(request.id)}
+                              className="d-flex align-items-center gap-1"
                             >
+                              <span>👁️</span>
                               Ver
                             </Button>
                           </td>

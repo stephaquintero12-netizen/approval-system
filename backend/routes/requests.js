@@ -13,7 +13,7 @@ router.get('/', async (req, res) => {
       LEFT JOIN users ur ON r.requester_id = ur.id
       LEFT JOIN users ua ON r.approver_id = ua.id
       ORDER BY r.created_at DESC
-    `);
+    `);  
     res.json(requests);
     
   } catch (error) {
@@ -28,6 +28,10 @@ router.post('/', async (req, res) => {
   let connection;
   try {
     const { title, description, request_type, priority, requester_id, approver_id } = req.body;
+
+    console.log('📥 Datos recibidos para nueva solicitud:', {
+      title, request_type, priority, requester_id, approver_id
+    });
 
     if (!title || !description || !request_type || !requester_id || !approver_id) {
       return res.status(400).json({ 
@@ -44,7 +48,6 @@ router.post('/', async (req, res) => {
        VALUES (?, ?, ?, ?, ?, ?, ?, 'pending', ?)`,
       [requestId, title, description, request_type, priority || 'medium', requester_id, approver_id, createdAt]
     );
-
     const [requests] = await connection.execute(`
       SELECT r.*, 
         ur.full_name as requester_name,
@@ -66,7 +69,6 @@ router.post('/', async (req, res) => {
       const approver = approvers[0];
       
       if (approver && approver.email) {
-        
         sendNewRequestNotification(newRequest, approver)
           .then(() => console.log('✅ Email enviado exitosamente'))
           .catch(emailError => console.error('❌ Error enviando email:', emailError.message));
@@ -102,6 +104,7 @@ router.post('/', async (req, res) => {
 
 router.get('/:id', async (req, res) => {
   try {
+    const requestId = req.params.id;
     const [requests] = await pool.execute(`
       SELECT r.*, 
         ur.full_name as requester_name,
@@ -110,11 +113,17 @@ router.get('/:id', async (req, res) => {
       LEFT JOIN users ur ON r.requester_id = ur.id
       LEFT JOIN users ua ON r.approver_id = ua.id
       WHERE r.id = ?
-    `, [req.params.id]);
+    `, [requestId]);
     
     if (requests.length === 0) {
       return res.status(404).json({ error: 'Solicitud no encontrada' });
     }
+    
+    console.log('✅ Solicitud encontrada:', { 
+      id: requests[0].id, 
+      request_id: requests[0].request_id,
+      title: requests[0].title 
+    });
     
     res.json(requests[0]);
   } catch (error) {
